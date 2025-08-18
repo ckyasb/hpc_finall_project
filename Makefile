@@ -4,7 +4,7 @@ TARGET = winograd
 SOURCES = main.cu naive_conv.cu winograd_conv.cu
 
 $(TARGET): $(SOURCES)
-	$(CC) $(CFLAGS) $(SOURCES) -o $(TARGET)
+	$(CC) $(CFLAGS) $(SOURCES) -o $(TARGET) -lcublas
 
 clean:
 	rm -f $(TARGET)

@@ -2,6 +2,7 @@
 #include <thrust/device_vector.h>
 #include <cstdio> 
 #include <cstdlib>
+#include <cublas_v2.h> // 引入 cuBLAS 库
 
 // 定义矩阵乘法Tile的维度
 constexpr int TILE_DIM = 16;
@@ -143,51 +144,6 @@ __global__ void transform_input_kernel_fp32(const float* __restrict__ image, flo
     }
 }
 
-// --- Kernel 3: Standard FP32 GEMM using Shared Memory ---
-__global__ void winograd_gemm_kernel_fp32(const float* U, const float* V, float* M, int padded_C, int padded_K, int padded_P) {
-    __shared__ float u_tile[TILE_DIM][TILE_DIM];
-    __shared__ float v_tile[TILE_DIM][TILE_DIM];
-
-    int gemm_idx = blockIdx.z;
-    
-    int row = blockIdx.y * TILE_DIM + threadIdx.y;
-    int col = blockIdx.x * TILE_DIM + threadIdx.x;
-
-    const float* u_base = U + gemm_idx * padded_K * padded_C;
-    const float* v_base = V + gemm_idx * padded_C * padded_P;
-    float* m_base = M + gemm_idx * padded_K * padded_P;
-
-    float accumulator = 0.0f;
-
-    for (int i = 0; i < padded_C; i += TILE_DIM) {
-        // Load tiles into shared memory
-        if (row < padded_K && (i + threadIdx.x) < padded_C) {
-            u_tile[threadIdx.y][threadIdx.x] = u_base[row * padded_C + i + threadIdx.x];
-        } else {
-            u_tile[threadIdx.y][threadIdx.x] = 0.0f;
-        }
-
-        if ((i + threadIdx.y) < padded_C && col < padded_P) {
-            v_tile[threadIdx.y][threadIdx.x] = v_base[(i + threadIdx.y) * padded_P + col];
-        } else {
-            v_tile[threadIdx.y][threadIdx.x] = 0.0f;
-        }
-        __syncthreads();
-
-        // Compute matrix multiplication for the tile
-        for (int k = 0; k < TILE_DIM; ++k) {
-            accumulator += u_tile[threadIdx.y][k] * v_tile[k][threadIdx.x];
-        }
-        __syncthreads();
-    }
-
-    // Write result to global memory
-    if (row < padded_K && col < padded_P) {
-        m_base[row * padded_P + col] = accumulator;
-    }
-}
-
-
 // --- Kernel 4: 输出变换 ---
 __global__ void transform_output_kernel(const float* __restrict__ M_padded, float* __restrict__ output, int N, int K, int P, int outH, int outW, int padded_K, int padded_P) {
     int k = blockIdx.x * blockDim.x + threadIdx.x;
@@ -268,12 +224,10 @@ void winograd_conv(thrust::device_vector<float>& image,
         return;
     }
 
-    // Use TILE_DIM for padding to align with the FP32 GEMM kernel
     int padded_C = (C + TILE_DIM - 1) & ~(TILE_DIM - 1);
     int padded_K = (K + TILE_DIM - 1) & ~(TILE_DIM - 1);
     int padded_P = (P + TILE_DIM - 1) & ~(TILE_DIM - 1);
 
-    // Use float for intermediate buffers
     thrust::device_vector<float> U_padded(16 * padded_K * padded_C);
     thrust::device_vector<float> V_padded(16 * padded_C * padded_P);
     thrust::device_vector<float> M_padded(16 * padded_K * padded_P);
@@ -282,7 +236,6 @@ void winograd_conv(thrust::device_vector<float>& image,
     cudaMemset(V_padded.data().get(), 0, V_padded.size() * sizeof(float));
     cudaMemset(M_padded.data().get(), 0, M_padded.size() * sizeof(float));
 
-    // --- 内核启动 ---
     dim3 block_dim_2d(16, 16);
     
     // 1. 滤波器变换
@@ -293,14 +246,58 @@ void winograd_conv(thrust::device_vector<float>& image,
     dim3 grid_dim_input((P + block_dim_2d.x - 1) / block_dim_2d.x, (C + block_dim_2d.y - 1) / block_dim_2d.y);
     transform_input_kernel_fp32<<<grid_dim_input, block_dim_2d>>>(image.data().get(), V_padded.data().get(), N, C, H, W, P, outH, outW, padded_C, padded_P);
 
-    // 3. GEMM 计算 (调用 FP32 版本)
-    dim3 block_dim_gemm(TILE_DIM, TILE_DIM);
-    dim3 grid_dim_gemm(
-        (padded_P + TILE_DIM - 1) / TILE_DIM,
-        (padded_K + TILE_DIM - 1) / TILE_DIM,
-        16 // Batch dimension
-    );
-    winograd_gemm_kernel_fp32<<<grid_dim_gemm, block_dim_gemm>>>(U_padded.data().get(), V_padded.data().get(), M_padded.data().get(), padded_C, padded_K, padded_P);
+    // 3. GEMM 计算 (调用 cuBLAS)
+    cublasHandle_t handle;
+    cublasCreate(&handle);
+
+    const float alpha = 1.0f;
+    const float beta = 0.0f;
+    const int batch_count = 16;
+
+    // 为指针数组分配主机内存
+    const float** h_U_array = new const float*[batch_count];
+    const float** h_V_array = new const float*[batch_count];
+    float** h_M_array = new float*[batch_count];
+
+    // 填充主机指针数组
+    for(int i = 0; i < batch_count; ++i) {
+        h_U_array[i] = U_padded.data().get() + i * padded_K * padded_C;
+        h_V_array[i] = V_padded.data().get() + i * padded_C * padded_P;
+        h_M_array[i] = M_padded.data().get() + i * padded_K * padded_P;
+    }
+
+    // 为指针数组分配设备内存并从主机复制
+    const float **d_U_array, **d_V_array;
+    float **d_M_array;
+    cudaMalloc(&d_U_array, batch_count * sizeof(float*));
+    cudaMalloc(&d_V_array, batch_count * sizeof(float*));
+    cudaMalloc(&d_M_array, batch_count * sizeof(float*));
+    cudaMemcpy(d_U_array, h_U_array, batch_count * sizeof(float*), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_V_array, h_V_array, batch_count * sizeof(float*), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_M_array, h_M_array, batch_count * sizeof(float*), cudaMemcpyHostToDevice);
+
+    // BUG FIX: Correctly call cuBLAS for row-major matrices.
+    // To compute C = A * B (row-major), we call cuBLAS with C = B * A and swapped dimensions.
+    // Our A is U(K,C), B is V(C,P). We want C=M(K,P).
+    // So, we call cublas with m=P, n=K, k=C.
+    // The first matrix passed is V, the second is U.
+    cublasSgemmBatched(handle, CUBLAS_OP_N, CUBLAS_OP_N,
+                       padded_P, padded_K, padded_C,
+                       &alpha,
+                       d_V_array, padded_P,  // A for cuBLAS is our V
+                       d_U_array, padded_C,  // B for cuBLAS is our U
+                       &beta,
+                       d_M_array, padded_P,  // C for cuBLAS is our M
+                       batch_count);
+
+    // 清理资源
+    delete[] h_U_array;
+    delete[] h_V_array;
+    delete[] h_M_array;
+    cudaFree(d_U_array);
+    cudaFree(d_V_array);
+    cudaFree(d_M_array);
+    cublasDestroy(handle);
 
     // 4. 输出变换
     dim3 grid_dim_output((K + block_dim_2d.x - 1) / block_dim_2d.x, (P + block_dim_2d.y - 1) / block_dim_2d.y);
