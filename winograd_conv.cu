@@ -3,6 +3,7 @@
 #include <cstdio> 
 #include <cstdlib>
 #include <cublas_v2.h> // 引入 cuBLAS 库
+#include <iostream>
 
 // --- 变换矩阵 (常量内存) ---
 __constant__ float G[4][3] = {
@@ -327,104 +328,75 @@ __global__ void transform_output_kernel(const float* __restrict__ M_padded, floa
     }
 }
 
-
-// --- 主机函数: Winograd 卷积调度器 (带启发式策略) ---
-void winograd_conv(thrust::device_vector<float>& image,
-                   thrust::device_vector<float>& filter,
-                   thrust::device_vector<float>& out,
-                   thrust::device_vector<float>& U, // Unused
-                   thrust::device_vector<float>& V, // Unused
-                   thrust::device_vector<float>& M, // Unused
-                   int H, int W, int C, int K, int N) {
+// --- Helper function to run the Winograd pipeline on a single GPU ---
+void winograd_pipeline_single_gpu(const float* d_image, const float* d_filter, float* d_out,
+                                  int H, int W, int C, int K, int N, cudaStream_t stream) {
     const int outH = H - 2;
     const int outW = W - 2;
 
-    if (outH <= 0 || outW <= 0) {
-        cudaMemset(out.data().get(), 0, out.size() * sizeof(float));
-        return;
-    }
-
     // --- 启发式策略 ---
-    // 如果输入通道数太少，Winograd的变换开销不划算，回退到融合内核
     if (C < 16) {
         const int threads_per_block = 256;
         const int tiles_w = (outW + 1) / 2;
         const int tiles_h = (outH + 1) / 2;
         const int num_tiles = N * K * tiles_h * tiles_w;
         int grid_size = (num_tiles + threads_per_block - 1) / threads_per_block;
-
-        winograd_conv_fused_kernel<<<grid_size, threads_per_block>>>(
-            image.data().get(), filter.data().get(), out.data().get(),
-            N, C, H, W, K, outH, outW
-        );
-        cudaDeviceSynchronize();
+        winograd_conv_fused_kernel<<<grid_size, threads_per_block, 0, stream>>>(d_image, d_filter, d_out, N, C, H, W, K, outH, outW);
         return;
     }
 
     // --- Winograd + cuBLAS 流程 (适用于大矩阵) ---
     const int P = N * ((outH + 1) / 2) * ((outW + 1) / 2);
     if (P == 0) {
-        cudaMemset(out.data().get(), 0, out.size() * sizeof(float));
+        cudaMemsetAsync(d_out, 0, N * K * outH * outW * sizeof(float), stream);
         return;
     }
-
     int padded_C = (C + 15) & ~15;
     int padded_K = (K + 15) & ~15;
     int padded_P = (P + 15) & ~15;
 
-    thrust::device_vector<float> U_padded(16 * padded_K * padded_C);
-    thrust::device_vector<float> V_padded(16 * padded_C * padded_P);
-    thrust::device_vector<float> M_padded(16 * padded_K * padded_P);
-
-    cudaMemset(U_padded.data().get(), 0, U_padded.size() * sizeof(float));
-    cudaMemset(V_padded.data().get(), 0, V_padded.size() * sizeof(float));
-    cudaMemset(M_padded.data().get(), 0, M_padded.size() * sizeof(float));
+    float *U_padded, *V_padded, *M_padded;
+    cudaMalloc(&U_padded, 16 * padded_K * padded_C * sizeof(float));
+    cudaMalloc(&V_padded, 16 * padded_C * padded_P * sizeof(float));
+    cudaMalloc(&M_padded, 16 * padded_K * padded_P * sizeof(float));
+    cudaMemsetAsync(U_padded, 0, 16 * padded_K * padded_C * sizeof(float), stream);
+    cudaMemsetAsync(V_padded, 0, 16 * padded_C * padded_P * sizeof(float), stream);
+    cudaMemsetAsync(M_padded, 0, 16 * padded_K * padded_P * sizeof(float), stream);
 
     const int threads_per_block = 256;
-
-    // 1. 滤波器变换
     const int total_filters = K * C;
     int grid_size_filter = (total_filters + threads_per_block - 1) / threads_per_block;
-    transform_filter_kernel_merged<<<grid_size_filter, threads_per_block>>>(filter.data().get(), U_padded.data().get(), C, K, padded_C, padded_K);
+    transform_filter_kernel_merged<<<grid_size_filter, threads_per_block, 0, stream>>>(d_filter, U_padded, C, K, padded_C, padded_K);
 
-    // 2. 输入变换
     dim3 block_dim_input(TILE_W, TILE_H);
     const int num_tiles_w = (outW + 1) / 2;
     const int num_tiles_h = (outH + 1) / 2;
-    dim3 grid_dim_input(
-        (num_tiles_w + TILE_W - 1) / TILE_W,
-        (num_tiles_h + TILE_H - 1) / TILE_H,
-        N * C
-    );
-    transform_input_kernel_tiled<<<grid_dim_input, block_dim_input>>>(image.data().get(), V_padded.data().get(), N, C, H, W, P, outH, outW, padded_C, padded_P);
+    dim3 grid_dim_input((num_tiles_w + TILE_W - 1) / TILE_W, (num_tiles_h + TILE_H - 1) / TILE_H, N * C);
+    transform_input_kernel_tiled<<<grid_dim_input, block_dim_input, 0, stream>>>(d_image, V_padded, N, C, H, W, P, outH, outW, padded_C, padded_P);
 
-    // 3. GEMM 计算
     cublasHandle_t handle;
     cublasCreate(&handle);
-
+    cublasSetStream(handle, stream);
     const float alpha = 1.0f;
     const float beta = 0.0f;
     const int batch_count = 16;
-
     const float** h_U_array = new const float*[batch_count];
     const float** h_V_array = new const float*[batch_count];
     float** h_M_array = new float*[batch_count];
-
     for(int i = 0; i < batch_count; ++i) {
-        h_U_array[i] = U_padded.data().get() + i * padded_K * padded_C;
-        h_V_array[i] = V_padded.data().get() + i * padded_C * padded_P;
-        h_M_array[i] = M_padded.data().get() + i * padded_K * padded_P;
+        h_U_array[i] = U_padded + i * padded_K * padded_C;
+        h_V_array[i] = V_padded + i * padded_C * padded_P;
+        h_M_array[i] = M_padded + i * padded_K * padded_P;
     }
-
     const float **d_U_array, **d_V_array;
     float **d_M_array;
     cudaMalloc(&d_U_array, batch_count * sizeof(float*));
     cudaMalloc(&d_V_array, batch_count * sizeof(float*));
     cudaMalloc(&d_M_array, batch_count * sizeof(float*));
-    cudaMemcpy(d_U_array, h_U_array, batch_count * sizeof(float*), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_V_array, h_V_array, batch_count * sizeof(float*), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_M_array, h_M_array, batch_count * sizeof(float*), cudaMemcpyHostToDevice);
-
+    cudaMemcpyAsync(d_U_array, h_U_array, batch_count * sizeof(float*), cudaMemcpyHostToDevice, stream);
+    cudaMemcpyAsync(d_V_array, h_V_array, batch_count * sizeof(float*), cudaMemcpyHostToDevice, stream);
+    cudaMemcpyAsync(d_M_array, h_M_array, batch_count * sizeof(float*), cudaMemcpyHostToDevice, stream);
+    
     cublasSgemmBatched(handle, CUBLAS_OP_N, CUBLAS_OP_N,
                        padded_P, padded_K, padded_C,
                        &alpha,
@@ -433,7 +405,6 @@ void winograd_conv(thrust::device_vector<float>& image,
                        &beta,
                        d_M_array, padded_P,
                        batch_count);
-
     delete[] h_U_array;
     delete[] h_V_array;
     delete[] h_M_array;
@@ -442,11 +413,92 @@ void winograd_conv(thrust::device_vector<float>& image,
     cudaFree(d_M_array);
     cublasDestroy(handle);
 
-    // 4. 输出变换
     const int total_output_tiles = K * P;
     int grid_size_output = (total_output_tiles + threads_per_block - 1) / threads_per_block;
-    transform_output_kernel<<<grid_size_output, threads_per_block>>>(M_padded.data().get(), out.data().get(), N, K, P, outH, outW, padded_K, padded_P);
+    transform_output_kernel<<<grid_size_output, threads_per_block, 0, stream>>>(M_padded, d_out, N, K, P, outH, outW, padded_K, padded_P);
+    
+    cudaFree(U_padded);
+    cudaFree(V_padded);
+    cudaFree(M_padded);
+}
 
-    cudaDeviceSynchronize();
+
+// --- 主机函数: Winograd 卷积调度器 (双卡并行) ---
+void winograd_conv(thrust::device_vector<float>& image,
+                   thrust::device_vector<float>& filter,
+                   thrust::device_vector<float>& out,
+                   thrust::device_vector<float>& U, // Unused
+                   thrust::device_vector<float>& V, // Unused
+                   thrust::device_vector<float>& M, // Unused
+                   int H, int W, int C, int K, int N) {
+    
+    int device_count;
+    cudaGetDeviceCount(&device_count);
+
+    if (device_count < 2 || N < 2) { // 如果少于2个GPU或批次太小，则回退到单卡
+        cudaSetDevice(0);
+        winograd_pipeline_single_gpu(image.data().get(), filter.data().get(), out.data().get(), H, W, C, K, N, 0);
+        cudaDeviceSynchronize();
+        return;
+    }
+
+    // 启用GPU 0和GPU 1之间的P2P内存访问
+    cudaSetDevice(0);
+    cudaDeviceEnablePeerAccess(1, 0);
+    cudaSetDevice(1);
+    cudaDeviceEnablePeerAccess(0, 0);
+
+    // 创建流
+    cudaStream_t stream0, stream1;
+    cudaSetDevice(0);
+    cudaStreamCreate(&stream0);
+    cudaSetDevice(1);
+    cudaStreamCreate(&stream1);
+
+    // 划分批次
+    int N0 = N / 2;
+    int N1 = N - N0;
+    size_t image_size_bytes = (size_t)C * H * W * sizeof(float);
+    size_t filter_size_bytes = (size_t)K * C * 9 * sizeof(float);
+    const int outH = H - 2;
+    const int outW = W - 2;
+    size_t out_size_bytes = (size_t)K * outH * outW * sizeof(float);
+
+    // --- GPU 1 任务 ---
+    cudaSetDevice(1);
+    float *d_image1, *d_filter1, *d_out1;
+    cudaMalloc(&d_image1, N1 * image_size_bytes);
+    cudaMalloc(&d_filter1, filter_size_bytes);
+    cudaMalloc(&d_out1, N1 * out_size_bytes);
+    
+    // 从GPU 0异步复制数据到GPU 1
+    cudaMemcpyPeerAsync(d_filter1, 1, filter.data().get(), 0, filter_size_bytes, stream1);
+    cudaMemcpyPeerAsync(d_image1, 1, image.data().get() + N0 * C * H * W, 0, N1 * image_size_bytes, stream1);
+
+    // 在GPU 1上启动计算流水线
+    winograd_pipeline_single_gpu(d_image1, d_filter1, d_out1, H, W, C, K, N1, stream1);
+
+    // 将GPU 1的结果异步复制回GPU 0上的主输出Buffer
+    cudaMemcpyPeerAsync(out.data().get() + N0 * K * outH * outW, 0, d_out1, 1, N1 * out_size_bytes, stream1);
+
+    // --- GPU 0 任务 ---
+    cudaSetDevice(0);
+    // 在GPU 0上启动计算流水线 (数据已在主输入Buffer中)
+    winograd_pipeline_single_gpu(image.data().get(), filter.data().get(), out.data().get(), H, W, C, K, N0, stream0);
+
+    // --- 同步与清理 ---
+    cudaSetDevice(0);
+    cudaStreamSynchronize(stream0);
+    cudaSetDevice(1);
+    cudaStreamSynchronize(stream1);
+
+    cudaFree(d_image1);
+    cudaFree(d_filter1);
+    cudaFree(d_out1);
+
+    cudaSetDevice(0);
+    cudaStreamDestroy(stream0);
+    cudaSetDevice(1);
+    cudaStreamDestroy(stream1);
 }
 
