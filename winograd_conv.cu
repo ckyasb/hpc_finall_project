@@ -80,8 +80,8 @@ __global__ void transform_filter_kernel_merged(const float* __restrict__ filter,
 
 // --- Kernel 2: 输入变换 (高级Tiling策略) ---
 // 定义线程块处理的“宏观图块”的尺寸
-constexpr int TILE_W = 16;
-constexpr int TILE_H = 8;
+constexpr int TILE_W = 32;
+constexpr int TILE_H = 32;
 // 为这个宏观图块计算所需的输入数据片（Patch）的尺寸
 constexpr int PATCH_W = TILE_W * 2 + 2; // 16*2 + 2 = 34
 constexpr int PATCH_H = TILE_H * 2 + 2; // 8*2 + 2 = 18
@@ -267,7 +267,7 @@ void winograd_conv(thrust::device_vector<float>& image,
     int grid_size_filter = (total_filters + threads_per_block - 1) / threads_per_block;
     transform_filter_kernel_merged<<<grid_size_filter, threads_per_block>>>(filter.data().get(), U_padded.data().get(), C, K, padded_C, padded_K);
 
-    // 2. 输入变换 (Tiled)
+    // 2. 输入变换 (高级Tiling)
     dim3 block_dim_input(TILE_W, TILE_H); // e.g., 16x8 = 128 threads
     const int num_tiles_w = (outW + 1) / 2;
     const int num_tiles_h = (outH + 1) / 2;
