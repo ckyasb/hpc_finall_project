@@ -5,17 +5,18 @@
 #include <thrust/fill.h>
 
 void naive_conv(thrust::device_vector<float>& image,
-                thrust::device_vector<float>& filter, 
+                thrust::device_vector<float>& filter,
                 thrust::device_vector<float>& out,
                 thrust::device_vector<float>& U,
-                thrust::device_vector<float>& V, 
+                thrust::device_vector<float>& V,
                 thrust::device_vector<float>& M,
                 int H, int W, int C, int K, int N);
 
-void winograd_conv(thrust::device_vector<float>& image, 
-                   thrust::device_vector<float>& filter, 
+void winograd_conv(thrust::device_vector<float>& image,
+                   thrust::device_vector<float>& filter,
                    thrust::device_vector<float>& out,
                    thrust::device_vector<float>& U,
-                   thrust::device_vector<float>& V, 
+                   thrust::device_vector<float>& V,
                    thrust::device_vector<float>& M,
-                   int H, int W, int C, int K, int N);
+                   int H, int W, int C, int K, int N,
+                   cudaStream_t stream = 0);

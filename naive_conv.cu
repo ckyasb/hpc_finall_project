@@ -52,6 +52,6 @@ void naive_conv(thrust::device_vector<float>& image,
         image.data().get(), filter.data().get(), out.data().get(),
         N, C, H, W, K
     );
-    
+}
     cudaDeviceSynchronize();
 }
