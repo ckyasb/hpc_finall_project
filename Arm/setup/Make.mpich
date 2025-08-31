@@ -1,0 +1,59 @@
+# ======================================================================
+# HPCG Makefile for Kunpeng (Arm) with MANUALLY installed BoostKit (KML)
+# MPI Library: MPICH
+# ======================================================================
+#
+SHELL           = /bin/sh
+TOPdir          = ../
+SRCdir          = $(TOPdir)/src
+INCdir          = $(TOPdir)/src
+BINdir          = $(TOPdir)/bin
+#
+# ----------------------------------------------------------------------
+# - Message Passing library (MPI) --------------------------------------
+# **MODIFIED**: We now point to the Spack installation of MPICH
+#
+MPdir           = $(shell spack location -i mpich)
+MPinc           = -I$(MPdir)/include
+MPlib           = -L$(MPdir)/lib -lmpi
+#
+# ----------------------------------------------------------------------
+# - HPCG includes / libraries / specifics -------------------------------
+# Manually specifying paths and library names for BoostKit (KML)
+# This section remains unchanged.
+#
+# Base directory of your manual KML installation
+KML_DIR         = $(HOME)/kml
+
+# Header path
+KML_INC         = -I$(KML_DIR)/include
+
+# **CRITICAL FIX**: Library paths and library names
+# We need to search both the main 'lib' directory (for libkml_rt)
+# and the SVE-optimized 'lib/sve' directory for everything else.
+# The library names (-l flags) now match the files you actually have.
+KML_LIBS        = -L$(KML_DIR)/lib -L$(KML_DIR)/lib/sve -lklapack -lksolver -lkservice -lkml_rt -lm
+
+HPCG_INCLUDES   = -I$(INCdir) -I$(INCdir)/$(arch) $(MPinc) $(KML_INC)
+HPCG_LIBS       = $(MPlib) $(KML_LIBS)
+#
+# - Compile time options -----------------------------------------------
+#
+HPCG_OPTS       =
+HPCG_DEFS       = $(HPCG_OPTS) $(HPCG_INCLUDES)
+#
+# ----------------------------------------------------------------------
+# - Compilers / linkers - Optimization flags ---------------------------
+#
+CXX             = mpicxx
+CXXFLAGS        = $(HPCG_DEFS) -O3 -march=native -fopenmp
+#
+LINKER          = $(CXX)
+LINKFLAGS       = $(CXXFLAGS) $(HPCG_LIBS)
+#
+ARCHIVER        = ar
+ARFLAGS         = r
+RANLIB          = echo
+#
+# ----------------------------------------------------------------------
+

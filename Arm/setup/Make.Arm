@@ -1,0 +1,74 @@
+# ======================================================================
+# HPCG Makefile for Kunpeng (Arm) with Spack-managed dependencies (GCC)
+# FINAL CORRECTED AND CLEANED VERSION
+# ======================================================================
+#
+# ----------------------------------------------------------------------
+# - shell --------------------------------------------------------------
+# ----------------------------------------------------------------------
+#
+SHELL           = /bin/sh
+#
+CD              = cd
+CP              = cp
+LN_S            = ln -s -f
+MKDIR           = mkdir -p
+RM              = /bin/rm -f
+TOUCH           = touch
+#
+# ----------------------------------------------------------------------
+# - HPCG Directory Structure / HPCG library ------------------------------
+# ----------------------------------------------------------------------
+#
+TOPdir          = .
+SRCdir          = $(TOPdir)/src
+INCdir          = $(TOPdir)/src
+BINdir          = $(TOPdir)/bin
+#
+# ----------------------------------------------------------------------
+# - Message Passing library (MPI) --------------------------------------
+# ----------------------------------------------------------------------
+#
+MPdir           = $(shell spack location -i openmpi)
+MPinc           = -I$(MPdir)/include
+MPlib           = -L$(MPdir)/lib -lmpi
+#
+# ----------------------------------------------------------------------
+# - HPCG includes / libraries / specifics -------------------------------
+# ----------------------------------------------------------------------
+# Here we add the crucial Arm Performance Libraries (ArmPL)
+#
+# Base directory for the ArmPL Spack installation
+ARM_PL_DIR      = $(shell spack location -i armpl-gcc)
+# Specific subdirectory inside the installation path
+ARM_PL_SUBDIR   = armpl_25.04.1_gcc
+
+# CORRECTED PATH: Both include and library paths now use the correct subdirectory
+HPCG_INCLUDES   = -I$(INCdir) -I$(INCdir)/$(arch) $(MPinc) -I$(ARM_PL_DIR)/$(ARM_PL_SUBDIR)/include
+HPCG_LIBS       = $(MPlib) -L$(ARM_PL_DIR)/$(ARM_PL_SUBDIR)/lib -larmpl_lp64 -lamath -lm
+#
+# - Compile time options -----------------------------------------------
+#
+# CRITICAL FIX: Removed -DHPCG_NO_MPI to ENABLE parallel execution.
+HPCG_OPTS       =
+#
+# ----------------------------------------------------------------------
+#
+HPCG_DEFS       = $(HPCG_OPTS) $(HPCG_INCLUDES)
+#
+# ----------------------------------------------------------------------
+# - Compilers / linkers - Optimization flags ---------------------------
+# ----------------------------------------------------------------------
+#
+CXX             = mpicxx
+CXXFLAGS        = $(HPCG_DEFS) -O3 -march=native -fopenmp
+#
+LINKER          = $(CXX)
+LINKFLAGS       = $(CXXFLAGS) $(HPCG_LIBS)
+#
+# Archiver
+ARCHIVER        = ar
+ARFLAGS         = r
+RANLIB          = echo
+#
+# ----------------------------------------------------------------------
