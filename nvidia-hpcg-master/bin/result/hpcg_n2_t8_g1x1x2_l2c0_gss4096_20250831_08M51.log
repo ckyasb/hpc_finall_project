@@ -1,0 +1,10 @@
+################################################################
+### Test executed at: Sun Aug 31 08:59:51 AM CST 2025
+### Command:
+srun -n 2 --mpi=pmi2 --cpus-per-task=8 --export=ALL,I_MPI_HYDRA_BOOTSTRAP=slurm,I_MPI_PMI_PROVIDER=pmi2,I_MPI_PMI_LIBRARY=/slurm/libpmi2.so.0.0.0 ./hpcg.sh                         --nx 256 --ny 256 --nz 544 --rt 60                         --p2p 4 --gpu-affinity 0:1 --b 1                         --npx 1 --npy 1 --npz 2                         --l2cmp 0                         --gss 4096
+################################################################
+
+srun: Job step's --cpus-per-task value exceeds that of job (8 > 1). Job step may never run.
+srun: Job 54015 step creation temporarily disabled, retrying (Requested nodes are busy)
+srun: Job 54015 step creation still disabled, retrying (Requested nodes are busy)
+srun: error: Unable to create step for job 54015: Job/step already completing or completed

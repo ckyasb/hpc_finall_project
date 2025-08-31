@@ -1,0 +1,15 @@
+################################################################
+### Test executed at: Sun Aug 31 08:30:35 AM CST 2025
+### Command:
+srun -n 2 --cpu-bind=sockets --export=ALL,I_MPI_HYDRA_BOOTSTRAP=slurm,I_MPI_PMI_LIBRARY=/slurm/libpmi2.so.0.0.0,OMP_NUM_THREADS=32 ./hpcg.sh                     --nx 256 --ny 256 --nz 544 --rt 60                     --p2p 4 --gpu-affinity 0:1 --b 1                     --npx 1 --npy 1 --npz 2                     --l2cmp 0                     --gss 4096
+################################################################
+
+Abort(1090831) on node 0 (rank 0 in comm 0): Fatal error in PMPI_Init: Unknown error class, error stack:
+MPIR_Init_thread(193): 
+MPID_Init(1608)......: 
+MPIR_pmi_init(169)...: PMI2_Job_GetId returned 14
+Abort(1090831) on node 0 (rank 0 in comm 0): Fatal error in PMPI_Init: Unknown error class, error stack:
+MPIR_Init_thread(193): 
+MPID_Init(1608)......: 
+MPIR_pmi_init(169)...: PMI2_Job_GetId returned 14
+srun: error: v01: tasks 0-1: Exited with exit code 1

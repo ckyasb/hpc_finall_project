@@ -1,0 +1,42 @@
+==========================================================
+SLURM Job ID: 54464
+Job Name: HPCG-Tune
+Running on nodes: v03
+Number of Tasks: 2
+Tasks per Node: 2
+CPUs per Task: 2
+Job started at: Sun Aug 31 02:47:40 PM CST 2025
+==========================================================
+
+正在加载计算环境...
+./env.sh: line 3: spack: command not found
+./env.sh: line 4: spack: command not found
+./env.sh: line 5: spack: command not found
+./env.sh: line 9: spack: command not found
+./env.sh: line 10: spack: command not found
+./env.sh: line 14: spack: command not found
+--- 环境设置完成 ---
+环境加载完成。
+
+正在进入 bin 目录...
+当前目录: /home/hpc101/h3240100651/project/HPCG/nvidia/nvidia-hpcg-master/bin
+
+开始执行 run.sh 自动化测试脚本...
+正在检测运行环境...
+检测到 SLURM 环境。将使用 'srun' 启动器并采用原生MPI集成。
+----------------------------------------------------------
+开始HPCG进阶性能扫描 (v13)...
+结果将保存在: ./result
+==========================================================
+正在测试: NProc=2, OMP_Threads=2, Grid=1x1x2, L2Cmp=1, GSS=4096
+RANK=0
+pid, process_name, gpu_uuid, used_gpu_memory [MiB]
+测试完成。日志已保存至: ./result/hpcg_n2_t2_g1x1x2_l2c1_gss4096_20250831_14M40.log
+----------------------------------------------------------
+==========================================================
+所有进阶测试已完成！
+
+==========================================================
+run.sh 脚本执行完毕。
+Job finished at: Sun Aug 31 02:47:42 PM CST 2025
+==========================================================

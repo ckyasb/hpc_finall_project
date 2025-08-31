@@ -1,0 +1,9 @@
+################################################################
+### Test executed at: Sun Aug 31 09:04:53 AM CST 2025
+### Command:
+srun -n 2 --mpi=pmi2 --cpus-per-task=16 --export=ALL,I_MPI_HYDRA_BOOTSTRAP=slurm,I_MPI_PMI_PROVIDER=pmi2,I_MPI_PMI_LIBRARY=/slurm/libpmi2.so.0.0.0 ./hpcg.sh                         --nx 256 --ny 256 --nz 544 --rt 60                         --p2p 4 --gpu-affinity 0:1 --b 1                         --npx 1 --npy 1 --npz 2                         --l2cmp 1                         --gss 8192
+################################################################
+
+srun: Job step's --cpus-per-task value exceeds that of job (16 > 1). Job step may never run.
+srun: error: Slurm job 54015 has expired
+srun: Check SLURM_JOB_ID environment variable. Expired or invalid job 54015

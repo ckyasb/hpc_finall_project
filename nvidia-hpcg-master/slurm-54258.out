@@ -1,0 +1,71 @@
+==========================================================
+SLURM Job ID: 54258
+Job Name: HPCG-Tune
+Running on nodes: v00
+Number of Tasks: 4
+Tasks per Node: 4
+CPUs per Task: 1
+Job started at: Sun Aug 31 11:37:57 AM CST 2025
+==========================================================
+
+正在加载计算环境...
+--- 环境设置完成 ---
+环境加载完成。
+
+正在进入 bin 目录...
+当前目录: /home/hpc101/h3240100651/project/HPCG/nvidia/nvidia-hpcg-master/bin
+
+开始执行 run.sh 自动化测试脚本...
+正在检测运行环境...
+检测到 SLURM 环境。将使用 'srun' 启动器并采用原生MPI集成。
+----------------------------------------------------------
+开始HPCG进阶性能扫描 (v13)...
+结果将保存在: ./result
+==========================================================
+正在测试: NProc=2, OMP_Threads=1, Grid=1x1x2, L2Cmp=0, GSS=4096
+RANK=0
+pid, process_name, gpu_uuid, used_gpu_memory [MiB]
+测试完成。日志已保存至: ./result/hpcg_n2_t1_g1x1x2_l2c0_gss4096_20250831_11M03.log
+----------------------------------------------------------
+正在测试: NProc=2, OMP_Threads=1, Grid=1x1x2, L2Cmp=0, GSS=2048
+RANK=0
+pid, process_name, gpu_uuid, used_gpu_memory [MiB]
+测试完成。日志已保存至: ./result/hpcg_n2_t1_g1x1x2_l2c0_gss2048_20250831_11M53.log
+----------------------------------------------------------
+正在测试: NProc=2, OMP_Threads=1, Grid=1x1x2, L2Cmp=1, GSS=4096
+RANK=0
+pid, process_name, gpu_uuid, used_gpu_memory [MiB]
+测试完成。日志已保存至: ./result/hpcg_n2_t1_g1x1x2_l2c1_gss4096_20250831_11M42.log
+----------------------------------------------------------
+正在测试: NProc=2, OMP_Threads=1, Grid=1x1x2, L2Cmp=1, GSS=2048
+RANK=0
+pid, process_name, gpu_uuid, used_gpu_memory [MiB]
+测试完成。日志已保存至: ./result/hpcg_n2_t1_g1x1x2_l2c1_gss2048_20250831_11M47.log
+----------------------------------------------------------
+正在测试: NProc=2, OMP_Threads=2, Grid=1x1x2, L2Cmp=0, GSS=4096
+RANK=0
+pid, process_name, gpu_uuid, used_gpu_memory [MiB]
+测试完成。日志已保存至: ./result/hpcg_n2_t2_g1x1x2_l2c0_gss4096_20250831_11M47.log
+----------------------------------------------------------
+正在测试: NProc=2, OMP_Threads=2, Grid=1x1x2, L2Cmp=0, GSS=2048
+RANK=0
+pid, process_name, gpu_uuid, used_gpu_memory [MiB]
+测试完成。日志已保存至: ./result/hpcg_n2_t2_g1x1x2_l2c0_gss2048_20250831_11M16.log
+----------------------------------------------------------
+正在测试: NProc=2, OMP_Threads=2, Grid=1x1x2, L2Cmp=1, GSS=4096
+RANK=0
+pid, process_name, gpu_uuid, used_gpu_memory [MiB]
+测试完成。日志已保存至: ./result/hpcg_n2_t2_g1x1x2_l2c1_gss4096_20250831_11M41.log
+----------------------------------------------------------
+正在测试: NProc=2, OMP_Threads=2, Grid=1x1x2, L2Cmp=1, GSS=2048
+RANK=0
+pid, process_name, gpu_uuid, used_gpu_memory [MiB]
+测试完成。日志已保存至: ./result/hpcg_n2_t2_g1x1x2_l2c1_gss2048_20250831_11M06.log
+----------------------------------------------------------
+==========================================================
+所有进阶测试已完成！
+
+==========================================================
+run.sh 脚本执行完毕。
+Job finished at: Sun Aug 31 11:43:31 AM CST 2025
+==========================================================

@@ -1,0 +1,23 @@
+HPCG-NVIDIA 24.09.0  -- NVIDIA accelerated HPCG benchmark -- NVIDIA
+Build v0.5.9 
+
+Start of application (GPU-Only) ...
+ | Benchmark Mode !!!! CPU reference code is not performed 
+GPU Rank Info:
+ | cuSPARSE version 12.5
+ | Reference CPU memory = 16845.71 MB
+ | GPU Name: 'Tesla V100-SXM2-32GB' 
+ | GPU Memory Use: 32107 MB / 32494 MB
+ | Process Grid: 1x1x2
+ | Local Domain: 256x256x576
+ | Number of CPU Threads: 2
+ | Slice Size: 4096
+CUDART: cudaMalloc(&tmp, sizeof(double) * length) = 2 (out of memory) on v03 at (src/CudaKernels.cu:2058)
+CUDART: cudaMalloc(&tmp, sizeof(double) * length) = 2 (out of memory) on v03 at (src/CudaKernels.cu:2058)
+--------------------------------------------------------------------------
+prterun detected that one or more processes exited with non-zero status,
+thus causing the job to be terminated. The first process to do so was:
+
+   Process name: [prterun-v03-19378@1,1]
+   Exit code:    1
+--------------------------------------------------------------------------

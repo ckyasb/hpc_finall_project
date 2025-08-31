@@ -1,0 +1,12 @@
+HPCG-NVIDIA 24.09.0  -- NVIDIA accelerated HPCG benchmark -- NVIDIA
+Build v0.5.9 
+
+Start of application (GPU-Only) ...
+Initial Residual = 10324.1
+Iteration = 1   Scaled Residual = 0.181689
+Iteration = 2   Scaled Residual = 0.0990009
+Iteration = 3   Scaled Residual = 0.0681294
+Iteration = 4   Scaled Residual = 0.0519654
+Iteration = 5   Scaled Residual = 0.0419989
+Iteration = 6   Scaled Residual = 0.035231
+Iteration = 7   Scaled Residual = 0.030335

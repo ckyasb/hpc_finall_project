@@ -1,0 +1,103 @@
+# SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+#
+# --- 这是根据您的环境填充的版本 ---
+#
+SHELL         = /bin/sh
+CD            = cd
+CP            = cp
+LN_S          = ln -s -f
+MKDIR         = mkdir -p
+RM            = /bin/rm -f
+TOUCH         = touch
+
+TOPdir        = .
+SRCdir        = $(TOPdir)/src
+INCdir        = $(TOPdir)/src
+BINdir        = $(TOPdir)/bin
+
+# ----------------------------------------------------------------------
+# - Message Passing library (MPI) --------------------------------------
+# ----------------------------------------------------------------------
+# <--- 修改开始：对接您的 MPI_PATH 环境变量
+MPdir         = $(MPI_PATH)
+MPinc         = -I$(MPdir)/include
+MPlib         = -L$(MPdir)/lib
+# <--- 修改结束
+
+# ----------------------------------------------------------------------
+# - HPCG includes / libraries / specifics -------------------------------
+# ----------------------------------------------------------------------
+# <--- 修改开始：定义 Makefile 内部变量，指向您的环境变量
+CUDA_HOME     = $(CUDA_PATH)
+Mathdir       = $(MATHLIBS_PATH)
+NCCLdir       = $(NCCL_PATH)
+# 注意: 模板使用了 NVPL_PATH，而您的文档要求是 NVPL_SPARSE_PATH。我们在此进行对接。
+NVPL_PATH     = $(NVPL_SPARSE_PATH)
+# <--- 修改结束
+
+NVPL_SPARSE_INC=$(NVPL_PATH)/include
+NVPL_SPARSE_LIB=$(NVPL_PATH)/lib
+
+HPCG_INCLUDES = -I$(INCdir) -I$(INCdir)/$(arch) -I$(MPdir)/include
+HPCG_LIBS     = -L$(MPlib) -lmpi
+
+HPCG_INCLUDES += -I$(CUDA_HOME)/include -I$(Mathdir)/include
+HPCG_LIBS += -L$(Mathdir)/lib -lcuda -lcusparse -lcublas -lcublasLt -L$(CUDA_HOME)/lib64
+
+ifeq ($(USE_NCCL), 1)
+    HPCG_INCLUDES += -I$(NCCLdir)/include
+    HPCG_LIBS += -L$(NCCLdir)/lib -lnccl
+endif
+
+# ----------------------------------------------------------------------
+# - Compile time options -----------------------------------------------
+# ----------------------------------------------------------------------
+HPCG_OPTS  = -DHPCG_CUBIC_RADICAL_SEARCH -DHPCG_CONTIGUOUS_ARRAYS
+HPCG_OPTS  += -DUSE_CUDA
+
+ifeq ($(USE_NCCL), 1)
+    HPCG_OPTS  += -DUSE_NCCL
+endif
+
+ifeq ($(HPCG_ENG_VERSION), 1)
+    HPCG_OPTS += -DHPCG_ENG_VERSION
+endif
+
+ifeq ($(USE_INT64), 1)
+    HPCG_OPTS += -DINDEX_64
+endif
+
+HPCG_DEFS     = $(HPCG_OPTS) $(HPCG_INCLUDES)
+
+# ----------------------------------------------------------------------
+# - Compilers / linkers - Optimization flags ---------------------------
+# ----------------------------------------------------------------------
+# <--- 修改开始：这是最关键的一步！为您的 V100 (Volta 架构) 设置正确的计算能力
+CUDA_ARCH = -gencode=arch=compute_70,code=sm_70
+# <--- 修改结束
+
+CPU_ARCH ?= native
+
+CXX           = nvcc
+CXXFLAGS      = $(HPCG_DEFS) -O3 -Xcompiler --std=c++17 -Xcompiler -Ofast,-fopenmp,-mcpu=$(CPU_ARCH),-mtune=$(CPU_ARCH),-ftree-vectorize,-funroll-loops $(CUDA_ARCH)
+
+LINKER        = $(CXX)
+LINKFLAGS     = $(CXXFLAGS) $(HPCG_LIBS)
+
+ARCHIVER      = ar
+ARFLAGS       = r
+RANLIB        = echo

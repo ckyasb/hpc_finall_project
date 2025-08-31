@@ -1,0 +1,12 @@
+################################################################
+### Test executed at: Sun Aug 31 08:20:16 AM CST 2025
+### Command:
+mpirun -n 2 -bind-to socket -env OMP_NUM_THREADS 16 ./hpcg.sh                     --nx 256 --ny 256 --nz 544 --rt 120                     --p2p 4 --gpu-affinity 0:1 --b 1                     --npx 1 --npy 1 --npz 2                     --l2cmp 0                     --gss 8192
+################################################################
+
+[mpiexec@v01] match_arg (../../../../../src/pm/i_hydra/libhydra/arg/hydra_arg.c:82): unrecognized argument bind-to
+[mpiexec@v01] Similar arguments:
+[mpiexec@v01] 	 n
+[mpiexec@v01] HYD_arg_parse_array (../../../../../src/pm/i_hydra/libhydra/arg/hydra_arg.c:106): argument matching returned error
+[mpiexec@v01] mpiexec_get_parameters (../../../../../src/pm/i_hydra/mpiexec/mpiexec_params.c:1190): error parsing input array
+[mpiexec@v01] main (../../../../../src/pm/i_hydra/mpiexec/mpiexec.c:1727): error parsing parameters

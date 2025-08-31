@@ -1,0 +1,14 @@
+################################################################
+### Test executed at: Sun Aug 31 08:01:39 AM CST 2025
+### Command:
+mpirun -n 1 -bind-to socket -genv OMP_NUM_THREADS=64 ./hpcg.sh                     --nx 256 --ny 256 --nz 544 --rt 60                     --p2p 4 --gpu-affinity 0 --b 1                     --npx 1 --npy 1 --npz 1                     --l2cmp 0                     --gss 4096
+################################################################
+
+--------------------------------------------------------------------------
+An unrecognized option was included on the mpirun command line:
+
+  Option: --genv
+
+Please use the "mpirun --help" command to obtain a list of all
+supported options.
+--------------------------------------------------------------------------

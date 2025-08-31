@@ -1,0 +1,30 @@
+################################################################
+### Test executed at: Sun Aug 31 07:46:35 AM CST 2025
+### Command:
+mpirun -n 2 -bind-to socket ./hpcg.sh     --nx 256 --ny 256 --nz 544 --rt 120     --p2p 4 --gpu-affinity 0:1 --b 1     --npx 1 --npy 2 --npz 1
+################################################################
+
+HPCG-NVIDIA 24.09.0  -- NVIDIA accelerated HPCG benchmark -- NVIDIA
+Build v0.5.9 
+
+Start of application (GPU-Only) ...
+ | Benchmark Mode !!!! CPU reference code is not performed 
+[sct101:3773607] *** Process received signal ***
+[sct101:3773607] Signal: Floating point exception (8)
+[sct101:3773607] Signal code: Integer divide-by-zero (1)
+[sct101:3773607] Failing at address: 0x555d5d66a2da
+[sct101:3773607] [ 0] /lib/x86_64-linux-gnu/libc.so.6(+0x3c050)[0x7f7d7b041050]
+[sct101:3773607] [ 1] /home/hpc101/h3240100651/project/HPCG/nvidia/nvidia-hpcg-master/bin/xhpcg(+0x252da)[0x555d5d66a2da]
+[sct101:3773607] [ 2] /home/hpc101/h3240100651/project/HPCG/nvidia/nvidia-hpcg-master/bin/xhpcg(+0x11a9a)[0x555d5d656a9a]
+[sct101:3773607] [ 3] /lib/x86_64-linux-gnu/libc.so.6(+0x2724a)[0x7f7d7b02c24a]
+[sct101:3773607] [ 4] /lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0x85)[0x7f7d7b02c305]
+[sct101:3773607] [ 5] /home/hpc101/h3240100651/project/HPCG/nvidia/nvidia-hpcg-master/bin/xhpcg(+0x147a1)[0x555d5d6597a1]
+[sct101:3773607] *** End of error message ***
+./hpcg.sh: line 382: 3773607 Floating point exception${NUMCMD} ${CPUBIND} ${MEMBIND} ${XHPCG} --nx=${NX} --ny=${NY} --nz=${NZ} --rt=${RT} --gss=${GSS} ${HPCG_CONTROL}
+--------------------------------------------------------------------------
+prterun detected that one or more processes exited with non-zero status,
+thus causing the job to be terminated. The first process to do so was:
+
+   Process name: [prterun-sct101-3773591@1,1]
+   Exit code:    136
+--------------------------------------------------------------------------

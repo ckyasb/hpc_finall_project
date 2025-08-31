@@ -1,0 +1,7 @@
+################################################################
+### Test executed at: Sun Aug 31 11:00:26 AM CST 2025
+### Command:
+srun -n 2 --mpi=pmi2 --cpus-per-task=2 --export=ALL,I_MPI_HYDRA_BOOTSTRAP=slurm,I_MPI_PMI_PROVIDER=pmi2,I_MPI_PMI_LIBRARY=/slurm/libpmi2.so.0.0.0 ./hpcg.sh                         --nx 256 --ny 256 --nz 544 --rt 120                         --p2p 4 --gpu-affinity 0:1 --b 1                         --npx 1 --npy 1 --npz 2                         --l2cmp 1                         --gss 4096
+################################################################
+
+srun: error: Unable to create step for job 54182: More processors requested than permitted

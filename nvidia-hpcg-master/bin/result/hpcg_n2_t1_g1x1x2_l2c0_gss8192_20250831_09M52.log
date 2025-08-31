@@ -1,0 +1,27 @@
+################################################################
+### Test executed at: Sun Aug 31 09:09:52 AM CST 2025
+### Command:
+srun -n 2 --mpi=pmi2 --cpus-per-task=1 --export=ALL,I_MPI_HYDRA_BOOTSTRAP=slurm,I_MPI_PMI_PROVIDER=pmi2,I_MPI_PMI_LIBRARY=/slurm/libpmi2.so.0.0.0 ./hpcg.sh                         --nx 256 --ny 256 --nz 544 --rt 60                         --p2p 4 --gpu-affinity 0:1 --b 1                         --npx 1 --npy 1 --npz 2                         --l2cmp 0                         --gss 8192
+################################################################
+
+MPI startup(): I_MPI_PMI_PROVIDER environment variable is not supported.
+MPI startup(): Similar variables:
+	 I_MPI_OFI_PROVIDER
+	 I_MPI_CXX_PROFILE
+	 I_MPI_FC_PROFILE
+	 I_MPI_F77_PROFILE
+	 I_MPI_F90_PROFILE
+MPI startup(): To check the list of supported variables, use the impi_info utility or refer to https://www.intel.com/content/www/us/en/docs/mpi-library/developer-reference-linux/
+HPCG-NVIDIA 24.09.0  -- NVIDIA accelerated HPCG benchmark -- NVIDIA
+Build v0.5.9 
+
+Start of application (GPU-Only) ...
+ | Benchmark Mode !!!! CPU reference code is not performed 
+terminate called after throwing an instance of 'thrust::THRUST_200700_700_NS::system::system_error'
+  what():  reduce failed to synchronize: cudaErrorIllegalAddress: an illegal memory access was encountered
+terminate called after throwing an instance of 'thrust::THRUST_200700_700_NS::system::system_error'
+  what():  reduce failed to synchronize: cudaErrorIllegalAddress: an illegal memory access was encountered
+/home/hpc101/h3240100651/project/HPCG/nvidia/nvidia-hpcg-master/bin/./hpcg.sh: line 382: 42201 Aborted                 (core dumped) ${NUMCMD} ${CPUBIND} ${MEMBIND} ${XHPCG} --nx=${NX} --ny=${NY} --nz=${NZ} --rt=${RT} --gss=${GSS} ${HPCG_CONTROL}
+srun: error: v02: task 1: Exited with exit code 134
+/home/hpc101/h3240100651/project/HPCG/nvidia/nvidia-hpcg-master/bin/./hpcg.sh: line 382: 42204 Aborted                 (core dumped) ${NUMCMD} ${CPUBIND} ${MEMBIND} ${XHPCG} --nx=${NX} --ny=${NY} --nz=${NZ} --rt=${RT} --gss=${GSS} ${HPCG_CONTROL}
+srun: error: v02: task 0: Exited with exit code 134
